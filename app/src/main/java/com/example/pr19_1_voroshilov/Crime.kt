@@ -5,8 +5,7 @@ import androidx.room.PrimaryKey
 import java.util.Date
 import java.util.UUID
 
-@Entity
-data class Crime (@PrimaryKey val id: UUID = UUID.randomUUID()){
+data class Crime (val id: UUID = UUID.randomUUID()){
     var date = Date()
     var title = ""
     var isSolved = false

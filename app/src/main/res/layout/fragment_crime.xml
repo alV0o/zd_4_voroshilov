@@ -74,5 +74,6 @@
         android:id="@+id/call"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/call"/>
+        android:text="@string/call"
+        android:enabled="false"/>
 </LinearLayout>

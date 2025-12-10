@@ -11,15 +11,14 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import android.text.format.DateFormat
-import android.widget.Toast
 import androidx.appcompat.widget.AppCompatButton
+import androidx.core.net.toUri
 import java.util.UUID
 
 
@@ -34,7 +33,7 @@ class CrimeFragment : Fragment() {
     private lateinit var sendCrimeBtn:AppCompatButton
     private lateinit var chooseSuspectBtn:AppCompatButton
     private lateinit var callBtn:AppCompatButton
-    private lateinit var number:Uri
+    private var number:String = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,12 +83,10 @@ class CrimeFragment : Fragment() {
         callBtn = view.findViewById(R.id.call)
         callBtn.apply {
             setOnClickListener {
-                Toast.makeText(context, number.toString(), Toast.LENGTH_LONG).show()
-                val callIntent = Intent(Intent.ACTION_DIAL, number)
+                val callIntent = Intent(Intent.ACTION_DIAL, "tel:${number}".toUri())
                 startActivity(callIntent)
             }
         }
-
 
 
         dateText.text = DateFormat.getDateFormat(context).format(crime.date)
@@ -166,7 +163,8 @@ class CrimeFragment : Fragment() {
 
             requestCode == REQUEST_CONTACT && data != null -> {
                 val contactUri: Uri? = data.data
-                val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)
+                val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts._ID)
+
                 val cursor = requireActivity().contentResolver
                     .query(
                         contactUri!!,
@@ -180,11 +178,28 @@ class CrimeFragment : Fragment() {
                         return
                     }
                     it.moveToFirst()
-                    val suspect =
-                        it.getString(0)
+                    val suspect = it.getString(0)
                     crime.suspect = suspect
                     chooseSuspectBtn.text = crime.suspect
-                    number = it.getString(it.getColumnIndexOrThrow(Phone.NUMBER))
+                    val queryNumbers = arrayOf(CommonDataKinds.Phone.NUMBER)
+
+                    val phoneCursor = requireActivity().contentResolver
+                        .query(
+                            CommonDataKinds.Phone.CONTENT_URI,
+                            queryNumbers,
+                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                            arrayOf(it.getString(1)),
+                            null
+                        )
+                    phoneCursor?.use{
+                        it.moveToFirst()
+                        if (it.count == 0){
+                            callBtn.isEnabled = false
+                            return
+                        }
+                        number = it.getString(0)
+                        if(number.isNotEmpty()) callBtn.isEnabled = true
+                    }
                 }
             }
         }
