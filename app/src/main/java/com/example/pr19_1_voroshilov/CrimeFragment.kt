@@ -1,6 +1,11 @@
 package com.example.pr19_1_voroshilov
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -12,17 +17,25 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import java.text.DateFormat
-import java.util.Date
-import java.util.Locale
+import android.text.format.DateFormat
+import android.widget.Toast
+import androidx.appcompat.widget.AppCompatButton
 import java.util.UUID
 
+
+private const val DATE_FORMAT = "EEE, MMM, dd"
+private var REQUEST_CONTACT = 0
 class CrimeFragment : Fragment() {
     private lateinit var crime: Crime
     private lateinit var titleField: EditText
     private lateinit var dateButton: FloatingActionButton
     private lateinit var solvedCheckBox: CheckBox
     private lateinit var dateText: TextView
+    private lateinit var sendCrimeBtn:AppCompatButton
+    private lateinit var chooseSuspectBtn:AppCompatButton
+    private lateinit var callBtn:AppCompatButton
+    private lateinit var number:Uri
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,8 +53,46 @@ class CrimeFragment : Fragment() {
         dateButton = view.findViewById(R.id.crime_date) as FloatingActionButton
         solvedCheckBox = view.findViewById(R.id.crime_solved) as CheckBox
         dateText = view.findViewById(R.id.date_text) as TextView
+        sendCrimeBtn = view.findViewById(R.id.send_report)
+        sendCrimeBtn.setOnClickListener{
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT,
+                    getCrimeReport())
+                putExtra(
+                    Intent.EXTRA_SUBJECT,
+                    getString(R.string.crime_report_subject))
+            }.also { intent ->
+                val chooserIntent =
+                    Intent.createChooser(intent,
+                        getString(R.string.send_report))
+                startActivity(chooserIntent)
+            }
+        }
 
-        dateText.text = DateFormat.getDateInstance(DateFormat.LONG).format(crime.date)
+        chooseSuspectBtn = view.findViewById(R.id.choose_suspect)
+        chooseSuspectBtn.apply {
+            val pickContactIntent =
+                Intent(Intent.ACTION_PICK,
+                    ContactsContract.Contacts.CONTENT_URI)
+
+            setOnClickListener {
+                startActivityForResult(pickContactIntent, REQUEST_CONTACT)
+            }
+        }
+
+        callBtn = view.findViewById(R.id.call)
+        callBtn.apply {
+            setOnClickListener {
+                Toast.makeText(context, number.toString(), Toast.LENGTH_LONG).show()
+                val callIntent = Intent(Intent.ACTION_DIAL, number)
+                startActivity(callIntent)
+            }
+        }
+
+
+
+        dateText.text = DateFormat.getDateFormat(context).format(crime.date)
 
         dateButton.apply {
             isEnabled = false
@@ -54,6 +105,27 @@ class CrimeFragment : Fragment() {
         }
         solvedCheckBox.isEnabled = false
         return view
+    }
+
+    private fun getCrimeReport(): String {
+        val solvedString = if (crime.isSolved)
+        {
+            getString(R.string.crime_report_solved)
+        } else {
+            getString(R.string.crime_report_unsolved) }
+
+        val dateString =
+            DateFormat.format(DATE_FORMAT,
+                crime.date).toString()
+        var suspect = if (crime.suspect.isBlank()) {
+            getString(R.string.crime_report_no_suspect)
+        } else {
+            getString(R.string.crime_report_suspect, crime.suspect)
+        }
+
+        return getString(R.string.crime_report,
+            crime.title, dateString,
+            solvedString, suspect)
     }
 
     override fun onStart() {
@@ -83,6 +155,37 @@ class CrimeFragment : Fragment() {
         solvedCheckBox.apply {
             setOnCheckedChangeListener { _, isChecked ->  crime.isSolved = isChecked
                 dateButton.isEnabled = solvedCheckBox.isChecked
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        when {
+            resultCode != Activity.RESULT_OK ->
+                return
+
+            requestCode == REQUEST_CONTACT && data != null -> {
+                val contactUri: Uri? = data.data
+                val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)
+                val cursor = requireActivity().contentResolver
+                    .query(
+                        contactUri!!,
+                        queryFields,
+                        null,
+                        null,
+                        null
+                    )
+                cursor?.use {
+                    if (it.count == 0) {
+                        return
+                    }
+                    it.moveToFirst()
+                    val suspect =
+                        it.getString(0)
+                    crime.suspect = suspect
+                    chooseSuspectBtn.text = crime.suspect
+                    number = it.getString(it.getColumnIndexOrThrow(Phone.NUMBER))
+                }
             }
         }
     }
