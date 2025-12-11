@@ -19,6 +19,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import android.text.format.DateFormat
 import androidx.appcompat.widget.AppCompatButton
 import androidx.core.net.toUri
+import com.google.android.material.snackbar.Snackbar
 import java.util.UUID
 
 
@@ -54,18 +55,28 @@ class CrimeFragment : Fragment() {
         dateText = view.findViewById(R.id.date_text) as TextView
         sendCrimeBtn = view.findViewById(R.id.send_report)
         sendCrimeBtn.setOnClickListener{
-            Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT,
-                    getCrimeReport())
-                putExtra(
-                    Intent.EXTRA_SUBJECT,
-                    getString(R.string.crime_report_subject))
-            }.also { intent ->
-                val chooserIntent =
-                    Intent.createChooser(intent,
-                        getString(R.string.send_report))
-                startActivity(chooserIntent)
+            if (crime.title.isNotEmpty()) {
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        getCrimeReport()
+                    )
+                    putExtra(
+                        Intent.EXTRA_SUBJECT,
+                        getString(R.string.crime_report_subject)
+                    )
+                }.also { intent ->
+                    val chooserIntent =
+                        Intent.createChooser(
+                            intent,
+                            getString(R.string.send_report)
+                        )
+                    startActivity(chooserIntent)
+                }
+            }
+            else{
+                Snackbar.make(view, "Введите преступление", Snackbar.LENGTH_SHORT).show()
             }
         }
 
@@ -152,6 +163,7 @@ class CrimeFragment : Fragment() {
         solvedCheckBox.apply {
             setOnCheckedChangeListener { _, isChecked ->  crime.isSolved = isChecked
                 dateButton.isEnabled = solvedCheckBox.isChecked
+                sendCrimeBtn.isEnabled = solvedCheckBox.isChecked
             }
         }
     }
